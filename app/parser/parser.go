@@ -97,5 +97,27 @@ func parseBulk(reader *bufio.Reader) (Value, error) {
 }
 
 func parseArray(reader *bufio.Reader) (Value, error) {
-	return Value{}, nil
+	s, err := readLine(reader)
+	if err != nil {
+		return Value{}, err
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return Value{}, errors.New("protocol error")
+	}
+	if n == -1 {
+		return Value{Kind: KindNull}, nil
+	}
+	if n < -1 {
+		return Value{}, errors.New("protocol error")
+	}
+	result := make([]Value, n)
+	for i := range n {
+		v, err := Parser(reader)
+		if err != nil {
+			return Value{}, err
+		}
+		result[i] = v
+	}
+	return Value{Kind: KindArray, Array: result}, nil
 }
