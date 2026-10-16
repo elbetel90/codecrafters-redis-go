@@ -1,24 +1,32 @@
 package main
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
-)
 
-const (
-	READ_BUF_SIZE = 1024
+	"github.com/codecrafters-io/redis-starter-go/app/parser"
 )
 
 func handleConnection(conn net.Conn) {
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
 	for {
-		buf := make([]byte, READ_BUF_SIZE)
-		_, err := conn.Read(buf)
+		value, err := parser.Parser(reader)
 		if err != nil {
-			fmt.Println("Error reading to buffer: ", err.Error())
+			if err != io.EOF {
+				fmt.Println("Error parsing: ", err.Error())
+			}
 			return
 		}
+		_ = value
+		j, _ := json.MarshalIndent(value, " ", " ")
+		fmt.Println(string(j))
 		conn.Write([]byte("+PONG\r\n"))
+
 	}
 }
 
