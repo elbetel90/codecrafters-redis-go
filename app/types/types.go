@@ -8,3 +8,10 @@ const (
 	CommandGet  Command = "GET"
 	CommandSet  Command = "SET"
 )
+
+type OptionalSetCommandArg string
+
+const (
+	OptionalSetCommandArgEX OptionalSetCommandArg = "EX"
+	OptionalSetCommandArgPX OptionalSetCommandArg = "PX"
+)

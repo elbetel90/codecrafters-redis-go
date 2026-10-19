@@ -6,7 +6,9 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/codecrafters-io/redis-starter-go/app/parser"
 	"github.com/codecrafters-io/redis-starter-go/app/store"
@@ -56,7 +58,30 @@ func handleConnection(conn net.Conn, store *store.Store) {
 				conn.Write(utils.EncodeError("ERR wrong number of arguments for 'set' command"))
 				continue
 			}
-			store.Set(args[1], args[2])
+			var expiry time.Time
+			if len(args) > 3 {
+				if len(args) < 5 {
+					conn.Write(utils.EncodeError("ERR syntax error"))
+					continue
+				}
+				n, err := strconv.Atoi(args[4])
+				if err != nil {
+					conn.Write(utils.EncodeError("ERR value is not an integer or out of range"))
+					continue
+				}
+				switch strings.ToUpper(args[3]) {
+				case string(types.OptionalSetCommandArgEX):
+					expiry = time.Now().Add(time.Duration(n) * time.Second)
+				case string(types.OptionalSetCommandArgPX):
+					expiry = time.Now().Add(time.Duration(n) * time.Millisecond)
+				default:
+					conn.Write(utils.EncodeError("ERR syntax error"))
+					continue
+				}
+				conn.Write(utils.EncodeError("ERR wrong number of arguments for 'set' command"))
+				continue
+			}
+			store.Set(args[1], args[2], expiry)
 			conn.Write(utils.EncodeSimple("OK"))
 		default:
 			conn.Write(utils.EncodeError("ERR unknown command"))
