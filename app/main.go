@@ -78,8 +78,6 @@ func handleConnection(conn net.Conn, store *store.Store) {
 					conn.Write(utils.EncodeError("ERR syntax error"))
 					continue
 				}
-				conn.Write(utils.EncodeError("ERR wrong number of arguments for 'set' command"))
-				continue
 			}
 			store.Set(args[1], args[2], expiry)
 			conn.Write(utils.EncodeSimple("OK"))
