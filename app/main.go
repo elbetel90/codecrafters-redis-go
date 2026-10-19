@@ -9,12 +9,13 @@ import (
 	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/parser"
+	"github.com/codecrafters-io/redis-starter-go/app/store"
 	"github.com/codecrafters-io/redis-starter-go/app/types"
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 // handles connection
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, store *store.Store) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
 	for {
@@ -39,6 +40,24 @@ func handleConnection(conn net.Conn) {
 				continue
 			}
 			conn.Write(utils.EncodeBulk(args[1]))
+		case string(types.CommandGet):
+			if len(args) < 2 {
+				conn.Write(utils.EncodeError("ERR wrong number of arguments for 'get' command"))
+				continue
+			}
+			v, ok := store.Get(args[1])
+			if !ok {
+				conn.Write(utils.EncodeNullBulk())
+				continue
+			}
+			conn.Write(utils.EncodeBulk(v))
+		case string(types.CommandSet):
+			if len(args) < 3 {
+				conn.Write(utils.EncodeError("ERR wrong number of arguments for 'set' command"))
+				continue
+			}
+			store.Set(args[1], args[2])
+			conn.Write(utils.EncodeSimple("OK"))
 		default:
 			conn.Write(utils.EncodeError("ERR unknown command"))
 		}
@@ -54,6 +73,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	st := store.NewStore()
 	for {
 		conn, err := l.Accept()
 		if err != nil {
@@ -61,7 +81,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		go handleConnection(conn)
+		go handleConnection(conn, st)
 	}
 
 }
