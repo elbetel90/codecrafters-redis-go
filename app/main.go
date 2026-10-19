@@ -39,6 +39,7 @@ func argv(value parser.Value) ([]string, error) {
 	return args, nil
 }
 
+// handles connection
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
