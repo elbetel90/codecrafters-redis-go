@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -11,33 +10,8 @@ import (
 
 	"github.com/codecrafters-io/redis-starter-go/app/parser"
 	"github.com/codecrafters-io/redis-starter-go/app/types"
+	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
-
-func encodeSimple(s string) []byte {
-	return []byte("+" + s + "\r\n")
-}
-
-func encodeBulk(s string) []byte {
-	return fmt.Appendf(nil, "$%d\r\n%s\r\n", len(s), s)
-}
-
-func encodeError(s string) []byte {
-	return []byte("-" + s + "\r\n")
-}
-
-func argv(value parser.Value) ([]string, error) {
-	if value.Kind != parser.KindArray || len(value.Array) == 0 {
-		return nil, errors.New("expected command array")
-	}
-	args := make([]string, len(value.Array))
-	for i, v := range value.Array {
-		if v.Kind != parser.KindBulkString {
-			return nil, errors.New("expected bulk string argument")
-		}
-		args[i] = v.Str
-	}
-	return args, nil
-}
 
 // handles connection
 func handleConnection(conn net.Conn) {
@@ -51,22 +25,22 @@ func handleConnection(conn net.Conn) {
 			}
 			return
 		}
-		args, err := argv(value)
+		args, err := utils.Argv(value)
 		if err != nil {
-			conn.Write(encodeError("ERR protocol error"))
+			conn.Write(utils.EncodeError("ERR protocol error"))
 			continue
 		}
 		switch strings.ToUpper(args[0]) {
 		case string(types.CommandPing):
-			conn.Write(encodeSimple("PONG"))
+			conn.Write(utils.EncodeSimple("PONG"))
 		case string(types.CommandEcho):
 			if len(args) < 2 {
-				conn.Write(encodeError("ERR wrong number of arguments for 'echo' command"))
+				conn.Write(utils.EncodeError("ERR wrong number of arguments for 'echo' command"))
 				continue
 			}
-			conn.Write(encodeBulk(args[1]))
+			conn.Write(utils.EncodeBulk(args[1]))
 		default:
-			conn.Write(encodeError("ERR unknown command"))
+			conn.Write(utils.EncodeError("ERR unknown command"))
 		}
 	}
 }
