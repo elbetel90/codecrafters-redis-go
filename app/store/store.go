@@ -49,3 +49,28 @@ func (s *Store) RPush(key string, value ...string) (int, error) {
 	s.lists[key] = append(s.lists[key], value...)
 	return len(s.lists[key]), nil
 }
+
+func (s *Store) LRange(key string, start, stop int) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	v, ok := s.lists[key]
+	if !ok {
+		return []string{}
+	}
+	n := len(v)
+	if start < 0 {
+		return []string{}
+	}
+	if start >= n {
+		return []string{}
+	}
+	if stop >= n {
+		stop = n - 1
+	}
+	if start > stop {
+		return []string{}
+	}
+	out := make([]string, stop-start+1)
+	copy(out, v[start:stop+1])
+	return out
+}

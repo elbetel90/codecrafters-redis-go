@@ -27,6 +27,18 @@ func EncodeInt(i int) []byte {
 	return fmt.Appendf(nil, ":%d\r\n", i)
 }
 
+func EncodeEmptyArray() []byte {
+	return []byte("*0\r\n")
+}
+
+func EncodeArray(v []string) []byte {
+	out := fmt.Appendf(nil, "*%d\r\n", len(v))
+	for _, s := range v {
+		out = append(out, EncodeBulk(s)...)
+	}
+	return out
+}
+
 func Argv(value parser.Value) ([]string, error) {
 	if value.Kind != parser.KindArray || len(value.Array) == 0 {
 		return nil, errors.New("expected command array")

@@ -76,6 +76,27 @@ func processCommand(conn net.Conn, store *store.Store, args []string) {
 			return
 		}
 		conn.Write(utils.EncodeInt(n))
+	case string(types.CommandLRange):
+		if len(args) < 4 {
+			conn.Write(utils.EncodeError("ERR wrong number of arguments for 'lrange' command"))
+			return
+		}
+		startIndex, err := strconv.Atoi(args[2])
+		if err != nil {
+			conn.Write(utils.EncodeError("ERR wrong start index type"))
+			return
+		}
+		stopIndex, err := strconv.Atoi(args[3])
+		if err != nil {
+			conn.Write(utils.EncodeError("ERR wrong start index type"))
+			return
+		}
+		v := store.LRange(args[1], startIndex, stopIndex)
+		if len(v) == 0 {
+			conn.Write(utils.EncodeEmptyArray())
+			return
+		}
+		conn.Write(utils.EncodeArray(v))
 	default:
 		conn.Write(utils.EncodeError("ERR unknown command"))
 	}
