@@ -10,7 +10,7 @@ const (
 	CommandRPush  Command = "RPUSH"
 	CommandLRange Command = "LRANGE"
 	CommandLPush  Command = "LPUSH"
-	CommandLLen   Command = "LLEN "
+	CommandLLen   Command = "LLEN"
 )
 
 type OptionalSetCommandArg string
