@@ -11,6 +11,7 @@ const (
 	CommandLRange Command = "LRANGE"
 	CommandLPush  Command = "LPUSH"
 	CommandLLen   Command = "LLEN"
+	CommandLPop   Command = "LPOP"
 )
 
 type OptionalSetCommandArg string

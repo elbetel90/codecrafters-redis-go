@@ -99,3 +99,19 @@ func (s *Store) LLen(key string) int {
 	}
 	return len(v)
 }
+
+func (s *Store) LPop(key string) (string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	v, ok := s.lists[key]
+	if !ok || len(v) == 0 {
+		return "", false
+	}
+	item := v[0]
+	if len(v) == 1 {
+		delete(s.lists, key)
+	} else {
+		s.lists[key] = v[1:]
+	}
+	return item, true
+}
