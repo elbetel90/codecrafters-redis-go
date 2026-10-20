@@ -39,6 +39,10 @@ func EncodeArray(v []string) []byte {
 	return out
 }
 
+func EncodeMissingKey() []byte {
+	return []byte(":0\r\n")
+}
+
 func Argv(value parser.Value) ([]string, error) {
 	if value.Kind != parser.KindArray || len(value.Array) == 0 {
 		return nil, errors.New("expected command array")
