@@ -80,3 +80,12 @@ func (s *Store) LRange(key string, start, stop int) []string {
 	copy(out, v[start:stop+1])
 	return out
 }
+
+func (s *Store) LPush(key string, value ...string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, v := range value {
+		s.lists[key] = append([]string{v}, s.lists[key]...)
+	}
+	return len(s.lists[key]), nil
+}

@@ -97,6 +97,17 @@ func processCommand(conn net.Conn, store *store.Store, args []string) {
 			return
 		}
 		conn.Write(utils.EncodeArray(v))
+	case string(types.CommandLPush):
+		if len(args) < 3 {
+			conn.Write(utils.EncodeError("ERR wrong number of arguments for 'lpush' command"))
+			return
+		}
+		n, err := store.LPush(args[1], args[2:]...)
+		if err != nil {
+			conn.Write(utils.EncodeError("ERR " + err.Error()))
+			return
+		}
+		conn.Write(utils.EncodeInt(n))
 	default:
 		conn.Write(utils.EncodeError("ERR unknown command"))
 	}
