@@ -16,6 +16,71 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
+func processCommand(conn net.Conn, store *store.Store, args []string) {
+	switch strings.ToUpper(args[0]) {
+	case string(types.CommandPing):
+		conn.Write(utils.EncodeSimple("PONG"))
+	case string(types.CommandEcho):
+		if len(args) < 2 {
+			conn.Write(utils.EncodeError("ERR wrong number of arguments for 'echo' command"))
+			return
+		}
+		conn.Write(utils.EncodeBulk(args[1]))
+	case string(types.CommandGet):
+		if len(args) < 2 {
+			conn.Write(utils.EncodeError("ERR wrong number of arguments for 'get' command"))
+			return
+		}
+		v, ok := store.Get(args[1])
+		if !ok {
+			conn.Write(utils.EncodeNullBulk())
+			return
+		}
+		conn.Write(utils.EncodeBulk(v))
+	case string(types.CommandSet):
+		if len(args) < 3 {
+			conn.Write(utils.EncodeError("ERR wrong number of arguments for 'set' command"))
+			return
+		}
+		var expiry time.Time
+		if len(args) > 3 {
+			if len(args) < 5 {
+				conn.Write(utils.EncodeError("ERR syntax error"))
+				return
+			}
+			n, err := strconv.Atoi(args[4])
+			if err != nil {
+				conn.Write(utils.EncodeError("ERR value is not an integer or out of range"))
+				return
+			}
+			switch strings.ToUpper(args[3]) {
+			case string(types.OptionalSetCommandArgEX):
+				expiry = time.Now().Add(time.Duration(n) * time.Second)
+			case string(types.OptionalSetCommandArgPX):
+				expiry = time.Now().Add(time.Duration(n) * time.Millisecond)
+			default:
+				conn.Write(utils.EncodeError("ERR syntax error"))
+				return
+			}
+		}
+		store.Set(args[1], args[2], expiry)
+		conn.Write(utils.EncodeSimple("OK"))
+	case string(types.CommandRPush):
+		if len(args) < 3 {
+			conn.Write(utils.EncodeError("ERR wrong number of arguments for 'rpush' command"))
+			return
+		}
+		n, err := store.RPush(args[1], args[2:]...)
+		if err != nil {
+			conn.Write(utils.EncodeError("ERR " + err.Error()))
+			return
+		}
+		conn.Write(utils.EncodeInt(n))
+	default:
+		conn.Write(utils.EncodeError("ERR unknown command"))
+	}
+}
+
 // handles connection
 func handleConnection(conn net.Conn, store *store.Store) {
 	defer conn.Close()
@@ -33,68 +98,7 @@ func handleConnection(conn net.Conn, store *store.Store) {
 			conn.Write(utils.EncodeError("ERR protocol error"))
 			continue
 		}
-		switch strings.ToUpper(args[0]) {
-		case string(types.CommandPing):
-			conn.Write(utils.EncodeSimple("PONG"))
-		case string(types.CommandEcho):
-			if len(args) < 2 {
-				conn.Write(utils.EncodeError("ERR wrong number of arguments for 'echo' command"))
-				continue
-			}
-			conn.Write(utils.EncodeBulk(args[1]))
-		case string(types.CommandGet):
-			if len(args) < 2 {
-				conn.Write(utils.EncodeError("ERR wrong number of arguments for 'get' command"))
-				continue
-			}
-			v, ok := store.Get(args[1])
-			if !ok {
-				conn.Write(utils.EncodeNullBulk())
-				continue
-			}
-			conn.Write(utils.EncodeBulk(v))
-		case string(types.CommandSet):
-			if len(args) < 3 {
-				conn.Write(utils.EncodeError("ERR wrong number of arguments for 'set' command"))
-				continue
-			}
-			var expiry time.Time
-			if len(args) > 3 {
-				if len(args) < 5 {
-					conn.Write(utils.EncodeError("ERR syntax error"))
-					continue
-				}
-				n, err := strconv.Atoi(args[4])
-				if err != nil {
-					conn.Write(utils.EncodeError("ERR value is not an integer or out of range"))
-					continue
-				}
-				switch strings.ToUpper(args[3]) {
-				case string(types.OptionalSetCommandArgEX):
-					expiry = time.Now().Add(time.Duration(n) * time.Second)
-				case string(types.OptionalSetCommandArgPX):
-					expiry = time.Now().Add(time.Duration(n) * time.Millisecond)
-				default:
-					conn.Write(utils.EncodeError("ERR syntax error"))
-					continue
-				}
-			}
-			store.Set(args[1], args[2], expiry)
-			conn.Write(utils.EncodeSimple("OK"))
-		case string(types.CommandRPush):
-			if len(args) < 3 {
-				conn.Write(utils.EncodeError("ERR wrong number of arguments for 'rpush' command"))
-				continue
-			}
-			n, err := store.RPush(args[1], args[2:]...)
-			if err != nil {
-				conn.Write(utils.EncodeError("ERR " + err.Error()))
-				continue
-			}
-			conn.Write(utils.EncodeInt(n))
-		default:
-			conn.Write(utils.EncodeError("ERR unknown command"))
-		}
+		processCommand(conn, store, args)
 	}
 }
 
