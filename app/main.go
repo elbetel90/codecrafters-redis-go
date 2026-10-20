@@ -81,6 +81,17 @@ func handleConnection(conn net.Conn, store *store.Store) {
 			}
 			store.Set(args[1], args[2], expiry)
 			conn.Write(utils.EncodeSimple("OK"))
+		case string(types.CommandRPush):
+			if len(args) < 3 {
+				conn.Write(utils.EncodeError("ERR wrong number of arguments for 'rpush' command"))
+				continue
+			}
+			n, err := store.RPush(args[1], args[2:]...)
+			if err != nil {
+				conn.Write(utils.EncodeError("ERR " + err.Error()))
+				continue
+			}
+			conn.Write(utils.EncodeInt(n))
 		default:
 			conn.Write(utils.EncodeError("ERR unknown command"))
 		}

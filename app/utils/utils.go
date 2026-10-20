@@ -23,6 +23,10 @@ func EncodeNullBulk() []byte {
 	return []byte("$-1\r\n")
 }
 
+func EncodeInt(i int) []byte {
+	return fmt.Appendf(nil, ":%d\r\n", i)
+}
+
 func Argv(value parser.Value) ([]string, error) {
 	if value.Kind != parser.KindArray || len(value.Array) == 0 {
 		return nil, errors.New("expected command array")

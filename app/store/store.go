@@ -11,13 +11,15 @@ type entry struct {
 }
 
 type Store struct {
-	mu   sync.Mutex
-	data map[string]entry
+	mu    sync.Mutex
+	data  map[string]entry
+	lists map[string][]string
 }
 
 func NewStore() *Store {
 	return &Store{
-		data: make(map[string]entry),
+		data:  make(map[string]entry),
+		lists: make(map[string][]string),
 	}
 }
 
@@ -39,4 +41,11 @@ func (s *Store) Set(key, value string, expiry time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.data[key] = entry{value: value, expiry: expiry}
+}
+
+func (s *Store) RPush(key string, value ...string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lists[key] = append(s.lists[key], value...)
+	return len(s.lists[key]), nil
 }
