@@ -59,7 +59,13 @@ func (s *Store) LRange(key string, start, stop int) []string {
 	}
 	n := len(v)
 	if start < 0 {
-		return []string{}
+		start = n + start
+	}
+	if stop < 0 {
+		stop = n + stop
+	}
+	if start < 0 {
+		start = 0
 	}
 	if start >= n {
 		return []string{}
