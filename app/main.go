@@ -108,6 +108,13 @@ func processCommand(conn net.Conn, store *store.Store, args []string) {
 			return
 		}
 		conn.Write(utils.EncodeInt(n))
+	case string(types.CommandLLen):
+		if len(args) < 2 {
+			conn.Write(utils.EncodeError("ERR wrong number of arguments for 'llen' command"))
+			return
+		}
+		n := store.LLen(args[1])
+		conn.Write(utils.EncodeInt(n))
 	default:
 		conn.Write(utils.EncodeError("ERR unknown command"))
 	}

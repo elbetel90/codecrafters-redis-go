@@ -89,3 +89,13 @@ func (s *Store) LPush(key string, value ...string) (int, error) {
 	}
 	return len(s.lists[key]), nil
 }
+
+func (s *Store) LLen(key string) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	v, ok := s.lists[key]
+	if !ok {
+		return 0
+	}
+	return len(v)
+}
