@@ -114,10 +114,6 @@ func processCommand(conn net.Conn, store *store.Store, args []string) {
 			return
 		}
 		n := store.LLen(args[1])
-		if n == 0 {
-			conn.Write(utils.EncodeMissingKey())
-			return
-		}
 		conn.Write(utils.EncodeInt(n))
 	default:
 		conn.Write(utils.EncodeError("ERR unknown command"))
