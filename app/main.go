@@ -116,11 +116,15 @@ func processCommand(conn net.Conn, store *store.Store, args []string) {
 		n := store.LLen(args[1])
 		conn.Write(utils.EncodeInt(n))
 	case string(types.CommandLPop):
-		if len(args) < 2 {
+		if len(args) < 3 {
 			conn.Write(utils.EncodeError("ERR wrong number of arguments for 'lpop' command"))
 			return
 		}
-		item, exists := store.LPop(args[1])
+		count, err := strconv.Atoi(args[2])
+		if err != nil {
+			conn.Write(utils.EncodeError("ERR " + err.Error()))
+		}
+		item, exists := store.LPop(args[1], count)
 		if !exists {
 			conn.Write(utils.EncodeNullBulk())
 			return

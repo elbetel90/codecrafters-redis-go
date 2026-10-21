@@ -100,18 +100,23 @@ func (s *Store) LLen(key string) int {
 	return len(v)
 }
 
-func (s *Store) LPop(key string) (string, bool) {
+func (s *Store) LPop(key string, count int) (string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	v, ok := s.lists[key]
 	if !ok || len(v) == 0 {
 		return "", false
 	}
+	if count > len(v) {
+		count = len(v)
+	}
+	out := make([]string, count)
+	copy(out, v[:count])
 	item := v[0]
-	if len(v) == 1 {
+	if count == len(v) {
 		delete(s.lists, key)
 	} else {
-		s.lists[key] = v[1:]
+		s.lists[key] = v[count:]
 	}
 	return item, true
 }
