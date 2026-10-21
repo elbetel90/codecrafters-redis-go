@@ -129,7 +129,7 @@ func processCommand(conn net.Conn, store *store.Store, args []string) {
 			conn.Write(utils.EncodeNullBulk())
 			return
 		}
-		conn.Write(utils.EncodeBulk(item))
+		conn.Write(utils.EncodeArray(item))
 	default:
 		conn.Write(utils.EncodeError("ERR unknown command"))
 	}
