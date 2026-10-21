@@ -116,20 +116,31 @@ func processCommand(conn net.Conn, store *store.Store, args []string) {
 		n := store.LLen(args[1])
 		conn.Write(utils.EncodeInt(n))
 	case string(types.CommandLPop):
-		if len(args) < 3 {
+		if len(args) < 2 {
 			conn.Write(utils.EncodeError("ERR wrong number of arguments for 'lpop' command"))
 			return
 		}
-		count, err := strconv.Atoi(args[2])
-		if err != nil {
-			conn.Write(utils.EncodeError("ERR " + err.Error()))
+		count := 1
+		withCount := false
+		if len(args) >= 3 {
+			n, err := strconv.Atoi(args[2])
+			if err != nil || n < 0 {
+				conn.Write(utils.EncodeError("ERR value is not an integer or out of range"))
+				return
+			}
+			count = n
+			withCount = true
 		}
 		item, exists := store.LPop(args[1], count)
 		if !exists {
 			conn.Write(utils.EncodeNullBulk())
 			return
 		}
-		conn.Write(utils.EncodeArray(item))
+		if withCount {
+			conn.Write(utils.EncodeArray(item))
+			return
+		}
+		conn.Write(utils.EncodeBulk(item[0]))
 	default:
 		conn.Write(utils.EncodeError("ERR unknown command"))
 	}
