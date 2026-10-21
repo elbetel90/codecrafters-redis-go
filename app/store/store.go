@@ -11,15 +11,17 @@ type entry struct {
 }
 
 type Store struct {
-	mu    sync.Mutex
-	data  map[string]entry
-	lists map[string][]string
+	mu      sync.Mutex
+	data    map[string]entry
+	lists   map[string][]string
+	waiters map[string][]chan string
 }
 
 func NewStore() *Store {
 	return &Store{
-		data:  make(map[string]entry),
-		lists: make(map[string][]string),
+		data:    make(map[string]entry),
+		lists:   make(map[string][]string),
+		waiters: make(map[string][]chan string),
 	}
 }
 
@@ -47,6 +49,7 @@ func (s *Store) RPush(key string, value ...string) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.lists[key] = append(s.lists[key], value...)
+	s.serveWaiters(key)
 	return len(s.lists[key]), nil
 }
 
@@ -87,6 +90,7 @@ func (s *Store) LPush(key string, value ...string) (int, error) {
 	for _, v := range value {
 		s.lists[key] = append([]string{v}, s.lists[key]...)
 	}
+	s.serveWaiters(key)
 	return len(s.lists[key]), nil
 }
 
@@ -98,6 +102,28 @@ func (s *Store) LLen(key string) int {
 		return 0
 	}
 	return len(v)
+}
+
+func (s *Store) serveWaiters(key string) {
+	for {
+		ws := s.waiters[key]
+		list := s.lists[key]
+		if len(ws) == 0 || len(list) == 0 {
+			break
+		}
+		ch := ws[0]
+		s.waiters[key] = ws[1:]
+		if len(s.waiters[key]) == 0 {
+			delete(s.waiters, key)
+		}
+		val := list[0]
+		if len(list) == 1 {
+			delete(s.lists, key)
+		} else {
+			s.lists[key] = list[1:]
+		}
+		ch <- val
+	}
 }
 
 func (s *Store) LPop(key string, count int) ([]string, bool) {
@@ -118,4 +144,22 @@ func (s *Store) LPop(key string, count int) ([]string, bool) {
 		s.lists[key] = v[count:]
 	}
 	return out, true
+}
+
+func (s *Store) BLpop(key string) (string, bool) {
+	s.mu.Lock()
+	if list := s.lists[key]; len(list) > 0 {
+		val := list[0]
+		if len(list) == 1 {
+			delete(s.lists, key)
+		} else {
+			s.lists[key] = list[1:]
+		}
+		s.mu.Unlock()
+		return val, true
+	}
+	ch := make(chan string, 1)
+	s.waiters[key] = append(s.waiters[key], ch)
+	s.mu.Unlock()
+	return <-ch, true
 }

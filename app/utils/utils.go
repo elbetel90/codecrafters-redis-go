@@ -31,6 +31,10 @@ func EncodeEmptyArray() []byte {
 	return []byte("*0\r\n")
 }
 
+func EncodeNullArray() []byte {
+	return []byte("*-1\r\n")
+}
+
 func EncodeArray(v []string) []byte {
 	out := fmt.Appendf(nil, "*%d\r\n", len(v))
 	for _, s := range v {

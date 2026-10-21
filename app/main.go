@@ -141,6 +141,22 @@ func processCommand(conn net.Conn, store *store.Store, args []string) {
 			return
 		}
 		conn.Write(utils.EncodeBulk(item[0]))
+	case string(types.CommandBLpop):
+		if len(args) < 3 {
+			conn.Write(utils.EncodeError("ERR wrong number of arguments for 'blpop' command"))
+			return
+		}
+		if _, err := strconv.ParseFloat(args[2], 64); err != nil {
+			conn.Write(utils.EncodeError("ERR timeout is not a float or out of range"))
+			return
+		}
+		val, ok := store.BLpop(args[1])
+		if !ok {
+			conn.Write(utils.EncodeNullArray())
+			return
+		}
+		conn.Write(utils.EncodeArray([]string{args[1], val}))
+
 	default:
 		conn.Write(utils.EncodeError("ERR unknown command"))
 	}
