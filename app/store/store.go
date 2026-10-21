@@ -127,6 +127,20 @@ func (s *Store) serveWaiters(key string) {
 	}
 }
 
+func (s *Store) removeWaiter(key string, ch chan string) bool {
+	ws := s.waiters[key]
+	for i, w := range ws {
+		if w == ch {
+			s.waiters[key] = append(ws[:i], ws[i+1:]...)
+			if len(s.waiters[key]) == 0 {
+				delete(s.waiters, key)
+			}
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Store) LPop(key string, count int) ([]string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -147,7 +161,7 @@ func (s *Store) LPop(key string, count int) ([]string, bool) {
 	return out, true
 }
 
-func (s *Store) BLpop(key string) (string, bool) {
+func (s *Store) BLpop(key string, timeout time.Duration) (string, bool) {
 	s.mu.Lock()
 	if list := s.lists[key]; len(list) > 0 {
 		val := list[0]
@@ -162,5 +176,19 @@ func (s *Store) BLpop(key string) (string, bool) {
 	ch := make(chan string, 1)
 	s.waiters[key] = append(s.waiters[key], ch)
 	s.mu.Unlock()
-	return <-ch, true
+	if timeout == 0 {
+		return <-ch, true
+	}
+	select {
+	case val := <-ch:
+		return val, true
+	case <-time.After(timeout):
+		s.mu.Lock()
+		stillWaiting := s.removeWaiter(key, ch)
+		s.mu.Unlock()
+		if stillWaiting {
+			return "", false
+		}
+		return <-ch, true
+	}
 }

@@ -146,11 +146,12 @@ func processCommand(conn net.Conn, store *store.Store, args []string) {
 			conn.Write(utils.EncodeError("ERR wrong number of arguments for 'blpop' command"))
 			return
 		}
-		if _, err := strconv.ParseFloat(args[2], 64); err != nil {
+		secs, err := strconv.ParseFloat(args[2], 64)
+		if err != nil {
 			conn.Write(utils.EncodeError("ERR timeout is not a float or out of range"))
 			return
 		}
-		val, ok := store.BLpop(args[1])
+		val, ok := store.BLpop(args[1], time.Duration(secs*float64(time.Second)))
 		if !ok {
 			conn.Write(utils.EncodeNullArray())
 			return
