@@ -49,8 +49,9 @@ func (s *Store) RPush(key string, value ...string) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.lists[key] = append(s.lists[key], value...)
+	n := len(s.lists[key])
 	s.serveWaiters(key)
-	return len(s.lists[key]), nil
+	return n, nil
 }
 
 func (s *Store) LRange(key string, start, stop int) []string {
