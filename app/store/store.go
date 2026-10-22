@@ -197,7 +197,7 @@ func (s *Store) Type(key string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if e, ok := s.data[key]; ok {
-		if e.expiry.IsZero() && !time.Now().Before(e.expiry) {
+		if !e.expiry.IsZero() && !time.Now().Before(e.expiry) {
 			delete(s.data, key)
 			return "none"
 		}
