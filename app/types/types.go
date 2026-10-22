@@ -13,6 +13,7 @@ const (
 	CommandLLen   Command = "LLEN"
 	CommandLPop   Command = "LPOP"
 	CommandBLpop  Command = "BLPOP"
+	CommandType   Command = "TYPE"
 )
 
 type OptionalSetCommandArg string

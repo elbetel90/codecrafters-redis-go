@@ -192,3 +192,19 @@ func (s *Store) BLpop(key string, timeout time.Duration) (string, bool) {
 		return <-ch, true
 	}
 }
+
+func (s *Store) Type(key string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if e, ok := s.data[key]; ok {
+		if e.expiry.IsZero() && !time.Now().Before(e.expiry) {
+			delete(s.data, key)
+			return "none"
+		}
+		return "string"
+	}
+	if _, ok := s.lists[key]; ok {
+		return "list"
+	}
+	return "none"
+}

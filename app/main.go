@@ -157,7 +157,12 @@ func processCommand(conn net.Conn, store *store.Store, args []string) {
 			return
 		}
 		conn.Write(utils.EncodeArray([]string{args[1], val}))
-
+	case string(types.CommandType):
+		if len(args) < 2 {
+			conn.Write(utils.EncodeError("ERR wrong number of arguments for 'type' command"))
+			return
+		}
+		conn.Write(utils.EncodeSimple(store.Type(args[1])))
 	default:
 		conn.Write(utils.EncodeError("ERR unknown command"))
 	}
