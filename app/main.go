@@ -163,6 +163,7 @@ func processCommand(conn net.Conn, store *store.Store, args []string) {
 			return
 		}
 		conn.Write(utils.EncodeSimple(store.Type(args[1])))
+	case string(types.CommandXADD):
 	default:
 		conn.Write(utils.EncodeError("ERR unknown command"))
 	}

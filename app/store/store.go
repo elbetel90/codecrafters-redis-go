@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
@@ -10,11 +11,17 @@ type entry struct {
 	expiry time.Time
 }
 
+type streamEntry struct {
+	id     string
+	fields []string
+}
+
 type Store struct {
 	mu      sync.Mutex
 	data    map[string]entry
 	lists   map[string][]string
 	waiters map[string][]chan string
+	streams map[string][]streamEntry
 }
 
 func NewStore() *Store {
@@ -22,6 +29,7 @@ func NewStore() *Store {
 		data:    make(map[string]entry),
 		lists:   make(map[string][]string),
 		waiters: make(map[string][]chan string),
+		streams: make(map[string][]streamEntry),
 	}
 }
 
@@ -206,5 +214,22 @@ func (s *Store) Type(key string) string {
 	if _, ok := s.lists[key]; ok {
 		return "list"
 	}
+	if _, ok := s.streams[key]; ok {
+		return "stream"
+	}
 	return "none"
+}
+
+func (s *Store) XAdd(key, id string, fields []string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.data[key]; ok {
+		return "", errors.New("wrong type error")
+	}
+	if _, ok := s.lists[key]; ok {
+		return "", errors.New("wrong type")
+	}
+	s.streams[key] = append(s.streams[key], streamEntry{id: id, fields: fields})
+
+	return id, nil
 }
