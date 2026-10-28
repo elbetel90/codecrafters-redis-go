@@ -2,6 +2,8 @@ package store
 
 import (
 	"errors"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -229,7 +231,37 @@ func (s *Store) XAdd(key, id string, fields []string) (string, error) {
 	if _, ok := s.lists[key]; ok {
 		return "", errors.New("wrong type")
 	}
+	ms, seq, err := parseStreamID(id)
+	if err != nil {
+		return "", err
+	}
+	stream := s.streams[key]
+	if len(stream) > 0 {
+		lastMs, lastSeq, err := parseStreamID(stream[len(stream)-1].id)
+		if err != nil {
+			return "", err
+		}
+		if ms < lastMs || (ms == lastMs && seq <= lastSeq) {
+			return "", errors.New("ERR The ID specified in XADD is equal or smaller than the target stream top item")
+		}
+	}
 	s.streams[key] = append(s.streams[key], streamEntry{id: id, fields: fields})
 
 	return id, nil
+}
+
+func parseStreamID(id string) (ms, seq int64, err error) {
+	parts := strings.Split(id, "-")
+	if len(parts) != 2 {
+		return 0, 0, errors.New("ERR Invalid stream ID specified as stream command argument")
+	}
+	ms, err = strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return 0, 0, errors.New("ERR Invalid stream ID specified as stream command argument")
+	}
+	seq, err = strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return 0, 0, errors.New("ERR Invalid stream ID specified as stream command argument")
+	}
+	return ms, seq, nil
 }

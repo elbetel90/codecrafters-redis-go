@@ -170,7 +170,7 @@ func processCommand(conn net.Conn, store *store.Store, args []string) {
 		}
 		id, err := store.XAdd(args[1], args[2], args[3:])
 		if err != nil {
-			conn.Write(utils.EncodeError("WRONGTYPE Operation against a key holding the wrong kind of value"))
+			conn.Write(utils.EncodeError(err.Error()))
 			return
 		}
 		conn.Write(utils.EncodeBulk(id))
