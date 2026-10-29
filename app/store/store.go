@@ -242,7 +242,7 @@ func (s *Store) XAdd(key, id string, fields []string) (string, error) {
 			return "", err
 		}
 		if ms < lastMs || (ms == lastMs && seq <= lastSeq) {
-			return "", errors.New("ERR The ID specified in XADD is equal or smaller than the target stream top item")
+			return "", errors.New("ERR The ID specified in XADD must be greater than 0-0")
 		}
 	}
 	s.streams[key] = append(s.streams[key], streamEntry{id: id, fields: fields})
