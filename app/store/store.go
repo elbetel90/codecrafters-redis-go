@@ -232,11 +232,26 @@ func (s *Store) XAdd(key, id string, fields []string) (string, error) {
 	if _, ok := s.lists[key]; ok {
 		return "", errors.New("wrong type")
 	}
-	ms, seq, autoSeq, err := parseStreamID(id)
+	ms, seq, autoGen, autoSeq, err := parseStreamID(id)
 	if err != nil {
 		return "", err
 	}
 	stream := s.streams[key]
+	if autoGen {
+		currentMillsec := time.Now().UnixMilli()
+		newId := fmt.Sprintf("%d-%d", currentMillsec, 0)
+		for _, v := range stream {
+			if v.id == newId {
+				_, exSeq, _, _, err := parseStreamID(v.id)
+				if err != nil {
+					return "", err
+				}
+				newId = fmt.Sprintf("%d-%d", currentMillsec, exSeq+1)
+				break
+			}
+		}
+		id = newId
+	}
 	if autoSeq {
 		if len(stream) == 0 {
 			if ms == 0 {
@@ -245,7 +260,7 @@ func (s *Store) XAdd(key, id string, fields []string) (string, error) {
 				seq = 0
 			}
 		} else {
-			lastMs, lastSeq, _, err := parseStreamID(stream[len(stream)-1].id)
+			lastMs, lastSeq, _, _, err := parseStreamID(stream[len(stream)-1].id)
 			if err != nil {
 				return "", err
 			}
@@ -264,7 +279,7 @@ func (s *Store) XAdd(key, id string, fields []string) (string, error) {
 		return "", errors.New("ERR The ID specified in XADD must be greater than 0-0")
 	}
 	if len(stream) > 0 {
-		lastMs, lastSeq, _, err := parseStreamID(stream[len(stream)-1].id)
+		lastMs, lastSeq, _, _, err := parseStreamID(stream[len(stream)-1].id)
 		if err != nil {
 			return "", err
 		}
@@ -272,27 +287,31 @@ func (s *Store) XAdd(key, id string, fields []string) (string, error) {
 			return "", errors.New("ERR The ID specified in XADD is equal or smaller than the target stream top item")
 		}
 	}
+
 	s.streams[key] = append(s.streams[key], streamEntry{id: id, fields: fields})
 
 	return id, nil
 }
 
-func parseStreamID(id string) (ms, seq int64, autoSeq bool, err error) {
+func parseStreamID(id string) (ms, seq int64, autoGen, autoSeq bool, err error) {
+	if id == "*" {
+		return 0, 0, true, false, nil
+	}
 	parts := strings.Split(id, "-")
 	if len(parts) != 2 {
-		return 0, 0, false, errors.New("ERR Invalid stream ID specified as stream command argument")
+		return 0, 0, false, false, errors.New("ERR Invalid stream ID specified as stream command argument")
 	}
 	ms, err = strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
-		return 0, 0, false, errors.New("ERR Invalid stream ID specified as stream command argument")
+		return 0, 0, false, false, errors.New("ERR Invalid stream ID specified as stream command argument")
 	}
 	if parts[1] == "*" {
-		return ms, 0, true, nil
+		return ms, 0, false, true, nil
 	} else {
 		seq, err = strconv.ParseInt(parts[1], 10, 64)
 		if err != nil {
-			return 0, 0, false, errors.New("ERR Invalid stream ID specified as stream command argument")
+			return 0, 0, false, false, errors.New("ERR Invalid stream ID specified as stream command argument")
 		}
 	}
-	return ms, seq, false, nil
+	return ms, seq, false, false, nil
 }
