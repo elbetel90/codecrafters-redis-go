@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -231,16 +232,39 @@ func (s *Store) XAdd(key, id string, fields []string) (string, error) {
 	if _, ok := s.lists[key]; ok {
 		return "", errors.New("wrong type")
 	}
-	ms, seq, err := parseStreamID(id)
+	ms, seq, autoSeq, err := parseStreamID(id)
 	if err != nil {
 		return "", err
+	}
+	stream := s.streams[key]
+	if autoSeq {
+		if len(stream) == 0 {
+			if ms == 0 {
+				seq = 1
+			} else {
+				seq = 0
+			}
+		} else {
+			lastMs, lastSeq, _, err := parseStreamID(stream[len(stream)-1].id)
+			if err != nil {
+				return "", err
+			}
+			if ms < lastMs {
+				return "", errors.New("ERR The ID specified in XADD is equal or smaller than the target stream top item")
+			}
+			if ms == lastMs {
+				seq = lastSeq + 1
+			} else {
+				seq = 0
+			}
+		}
+		id = fmt.Sprintf("%d-%d", ms, seq)
 	}
 	if ms == 0 && seq == 0 {
 		return "", errors.New("ERR The ID specified in XADD must be greater than 0-0")
 	}
-	stream := s.streams[key]
 	if len(stream) > 0 {
-		lastMs, lastSeq, err := parseStreamID(stream[len(stream)-1].id)
+		lastMs, lastSeq, _, err := parseStreamID(stream[len(stream)-1].id)
 		if err != nil {
 			return "", err
 		}
@@ -253,18 +277,22 @@ func (s *Store) XAdd(key, id string, fields []string) (string, error) {
 	return id, nil
 }
 
-func parseStreamID(id string) (ms, seq int64, err error) {
+func parseStreamID(id string) (ms, seq int64, autoSeq bool, err error) {
 	parts := strings.Split(id, "-")
 	if len(parts) != 2 {
-		return 0, 0, errors.New("ERR Invalid stream ID specified as stream command argument")
+		return 0, 0, false, errors.New("ERR Invalid stream ID specified as stream command argument")
 	}
 	ms, err = strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
-		return 0, 0, errors.New("ERR Invalid stream ID specified as stream command argument")
+		return 0, 0, false, errors.New("ERR Invalid stream ID specified as stream command argument")
 	}
-	seq, err = strconv.ParseInt(parts[1], 10, 64)
-	if err != nil {
-		return 0, 0, errors.New("ERR Invalid stream ID specified as stream command argument")
+	if parts[1] == "*" {
+		return ms, 0, true, nil
+	} else {
+		seq, err = strconv.ParseInt(parts[1], 10, 64)
+		if err != nil {
+			return 0, 0, false, errors.New("ERR Invalid stream ID specified as stream command argument")
+		}
 	}
-	return ms, seq, nil
+	return ms, seq, false, nil
 }
