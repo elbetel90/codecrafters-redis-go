@@ -238,19 +238,25 @@ func (s *Store) XAdd(key, id string, fields []string) (string, error) {
 	}
 	stream := s.streams[key]
 	if autoGen {
-		currentMillsec := time.Now().UnixMilli()
-		newId := fmt.Sprintf("%d-%d", currentMillsec, 0)
-		for _, v := range stream {
-			if v.id == newId {
-				_, exSeq, _, _, err := parseStreamID(v.id)
-				if err != nil {
-					return "", err
-				}
-				newId = fmt.Sprintf("%d-%d", currentMillsec, exSeq+1)
-				break
+		ms = time.Now().UnixMilli()
+		if len(stream) == 0 {
+			seq = 0
+		} else {
+			lastMs, lastSeq, _, _, err := parseStreamID(stream[len(stream)-1].id)
+			if err != nil {
+				return "", err
+			}
+			switch {
+			case ms == lastMs:
+				seq = lastSeq + 1
+			case ms > lastMs:
+				seq = 0
+			default:
+				ms = lastMs
+				seq = lastSeq + 1
 			}
 		}
-		id = newId
+		id = fmt.Sprintf("%d-%d", ms, seq)
 	}
 	if autoSeq {
 		if len(stream) == 0 {
