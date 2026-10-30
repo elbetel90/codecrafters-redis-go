@@ -174,6 +174,28 @@ func processCommand(conn net.Conn, store *store.Store, args []string) {
 			return
 		}
 		conn.Write(utils.EncodeBulk(id))
+	case string(types.CommandXRANGE):
+		if len(args) < 4 {
+			conn.Write(utils.EncodeError("ERR wrong number of arguments for 'xrange' command"))
+			return
+		}
+		entries, err := store.XRange(args[1], args[2], args[3])
+		if err != nil {
+			conn.Write(utils.EncodeError(err.Error()))
+			return
+		}
+		if len(entries) == 0 {
+			conn.Write(utils.EncodeEmptyArray())
+			return
+		}
+		encoded := make([][]byte, 0, len(entries))
+		for _, e := range entries {
+			encoded = append(encoded, utils.EncodeRESPArray(
+				utils.EncodeBulk(e.Id),
+				utils.EncodeArray(e.Fields),
+			))
+		}
+		conn.Write(utils.EncodeRESPArray(encoded...))
 	default:
 		conn.Write(utils.EncodeError("ERR unknown command"))
 	}

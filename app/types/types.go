@@ -15,6 +15,7 @@ const (
 	CommandBLpop  Command = "BLPOP"
 	CommandType   Command = "TYPE"
 	CommandXADD   Command = "XADD"
+	CommandXRANGE Command = "XRANGE"
 )
 
 type OptionalSetCommandArg string

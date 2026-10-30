@@ -3,6 +3,7 @@ package store
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,6 +18,11 @@ type entry struct {
 type streamEntry struct {
 	id     string
 	fields []string
+}
+
+type StreamRangeEntry struct {
+	Id     string
+	Fields []string
 }
 
 type Store struct {
@@ -242,6 +248,8 @@ func (s *Store) XAdd(key, id string, fields []string) (string, error) {
 		if len(stream) == 0 {
 			seq = 0
 		} else {
+			// xadd appends to the last of the slice. therefore, checking only the last element would suffice
+			// to generate the id
 			lastMs, lastSeq, _, _, err := parseStreamID(stream[len(stream)-1].id)
 			if err != nil {
 				return "", err
@@ -320,4 +328,55 @@ func parseStreamID(id string) (ms, seq int64, autoGen, autoSeq bool, err error) 
 		}
 	}
 	return ms, seq, false, false, nil
+}
+
+func parserRangeID(id string, defaultSeq int64) (ms, seq int64, err error) {
+	// default seq flow - sequence number is not provided
+	if !strings.Contains(id, "-") {
+		ms, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			return 0, 0, err
+		}
+		return ms, defaultSeq, nil
+	}
+	// sequence number is provided
+	ms, seq, _, _, err = parseStreamID(id)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return ms, seq, nil
+}
+
+func (s *Store) XRange(key string, start, end string) ([]StreamRangeEntry, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	startMs, startSeq, err := parserRangeID(start, 0)
+	if err != nil {
+		return nil, err
+	}
+	endMs, endSeq, err := parserRangeID(end, math.MaxInt64)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []StreamRangeEntry
+	for _, v := range s.streams[key] {
+		ms, seq, _, _, err := parseStreamID(v.id)
+		if err != nil {
+			return nil, err
+		}
+		if ms < startMs || (ms == startMs && seq < startSeq) {
+			continue
+		}
+		if endMs < ms || (endMs == ms && endSeq < seq) {
+			continue
+		}
+		fields := make([]string, len(v.fields))
+		copy(fields, v.fields)
+		out = append(out, StreamRangeEntry{Id: v.id, Fields: fields})
+	}
+
+	return out, nil
 }

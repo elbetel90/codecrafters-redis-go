@@ -43,6 +43,14 @@ func EncodeArray(v []string) []byte {
 	return out
 }
 
+func EncodeRESPArray(elems ...[]byte) []byte {
+	out := fmt.Appendf(nil, "*%d\r\n", len(elems))
+	for _, e := range elems {
+		out = append(out, e...)
+	}
+	return out
+}
+
 func Argv(value parser.Value) ([]string, error) {
 	if value.Kind != parser.KindArray || len(value.Array) == 0 {
 		return nil, errors.New("expected command array")
